@@ -23,6 +23,7 @@ public class BTSMSActivity extends Activity implements Notifyable {
 	private BroadcastReceiver smsDeliveredReceiver;
 
 	protected void onCreate(Bundle savedInstanceState) {
+		
 		super.onCreate(savedInstanceState);
 
 		this.mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -47,7 +48,6 @@ public class BTSMSActivity extends Activity implements Notifyable {
 			Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
 			startActivity(discoverableIntent);
 
-			Log.report("Local adress : " + mBluetoothAdapter.getAddress(), Log.INFO);
 			BTSMSView v = new BTSMSView(this, mBluetoothAdapter);
 			this.view = v;
 			Log.addObs(this);
@@ -88,18 +88,11 @@ public class BTSMSActivity extends Activity implements Notifyable {
 				int nClient = intent.getIntExtra("nclient", -1);
 				if(idm != -1 && idp != -1 && nClient != -1) {
 					Log.report("SMS "+ idm + " sent (part " + idp + ")", Log.INFO);
-					
-					byte[] bytesToSend = new byte[256];
-					bytesToSend[0] = 0;
-					bytesToSend[1] = 3;
-					bytesToSend[2] = (byte) 'D';
-					bytesToSend[3] = 0; // Sent
-					bytesToSend[4] = (byte) idm;
-					bytesToSend[5] = (byte) idp;
+					byte[] data = new byte[]{0,(byte) idm,(byte) idp};
 					
 					try {
-						l.clients_outputs.get(nClient).write(bytesToSend);
-						l.clients_outputs.get(nClient).flush();
+						l.clientsOutInt.get(nClient).sendPacket((byte) 'D', data);
+						Log.report("Delivery to client #"+nClient, Log.INFO);
 					} catch (IOException e) {
 						Log.report("IO issue sending delivery report to PC", Log.ERROR);
 					}
@@ -117,17 +110,10 @@ public class BTSMSActivity extends Activity implements Notifyable {
 				if(idm != -1 && idp != -1 && nClient != -1) {
 					Log.report("SMS "+ idm + " delivered (part " + idp + ")", Log.INFO);
 					
-					byte[] bytesToSend = new byte[256];
-					bytesToSend[0] = 0;
-					bytesToSend[1] = 3;
-					bytesToSend[2] = (byte) 'D';
-					bytesToSend[3] = 1; // Delivered
-					bytesToSend[4] = (byte) idm;
-					bytesToSend[5] = (byte) idp;
+					byte[] data = new byte[]{1,(byte) idm,(byte) idp};
 					
 					try {
-						l.clients_outputs.get(nClient).write(bytesToSend);
-						l.clients_outputs.get(nClient).flush();
+						l.clientsOutInt.get(nClient).sendPacket((byte) 'D', data);
 					} catch (IOException e) {
 						Log.report("IO issue sending delivery report to PC", Log.ERROR);
 					}
@@ -137,7 +123,7 @@ public class BTSMSActivity extends Activity implements Notifyable {
 		};
 		
 		registerReceiver(this.smsSentReceiver, new IntentFilter("SMS_SENT"));
-		registerReceiver(this.smsSentReceiver, new IntentFilter("SMS_DELIVERED"));
+		registerReceiver(this.smsDeliveredReceiver, new IntentFilter("SMS_DELIVERED"));
 	}
 
 	@Override

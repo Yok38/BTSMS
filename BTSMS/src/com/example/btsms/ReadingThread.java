@@ -12,61 +12,16 @@ import android.telephony.SmsManager;
 
 public class ReadingThread extends Thread {
 
-	private InputStream inputStream;
+	private InputInterface inInt;
 	private SmsManager smsm;
 	private Context context;
 	private int nClient;
 
-	public ReadingThread(Context context, InputStream inputStream, SmsManager smsm, int nClient) {
-		this.inputStream = inputStream;
+	public ReadingThread(Context context, InputInterface inInt, SmsManager smsm, int nClient) {
+		this.inInt = inInt;
 		this.smsm = smsm;
 		this.context = context;
 		this.nClient = nClient;
-	}
-
-	private byte[] readPacket() throws IOException {
-
-		byte[] buffer = new byte[256];
-		byte[] packet = null;
-		int lu = 0;
-
-
-		lu = this.inputStream.read(buffer);
-
-		while(lu<buffer.length) {
-			buffer[lu]=(byte) (this.inputStream.read());
-			lu++;
-		}
-
-		// Un buffer entier a été lu
-
-		if(buffer[0] == 0) {
-			// Pas de suite
-			packet = Arrays.copyOfRange(buffer, 2, (buffer[1]&0xff)+2+1);
-		} 
-		else {
-			// Suite
-			byte[] suite = readPacket();
-			if(byteToChar(suite[0])=='T') {
-				packet = concat(Arrays.copyOfRange(buffer, 2, (buffer[1]&0xff)+2+1),Arrays.copyOfRange(suite,1,suite.length));
-			}
-			else {
-				Log.report("\"Then\" packet was expected", Log.WARNING);
-			}
-		}
-
-		return packet;
-	}
-
-	private char byteToChar(byte b) {
-		return (char) (b&0xff);
-	}
-
-	private byte[] concat(byte[] a, byte[] b) {
-		byte[] c = new byte[a.length+b.length];
-		System.arraycopy(a, 0, c, 0, a.length);
-		System.arraycopy(b, 0, c, a.length, b.length);
-		return c;
 	}
 
 	public void run() {
@@ -74,7 +29,7 @@ public class ReadingThread extends Thread {
 
 		while(true) {
 			try {
-				packet = readPacket();
+				packet = this.inInt.readPacket();
 				switch(byteToChar(packet[0])) {
 				case 'S':
 					int id = packet[1]&0xff;
@@ -120,5 +75,9 @@ public class ReadingThread extends Thread {
 
 
 		}
+	}
+
+	private char byteToChar(byte b) {
+		return (char) (b&0xff);
 	}
 }

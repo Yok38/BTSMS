@@ -1,19 +1,17 @@
 package com.example.btsms;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import android.database.Cursor;
 import android.provider.ContactsContract;
 
 public class ContactSenderThread extends Thread {
 	
-	private static final int MAX_DATA_SIZE = 253;
-	private OutputStream out;
+	private OutputInterface outInt;
 	private Cursor contactList;
 	
-	ContactSenderThread(Cursor contactList, OutputStream out) {
+	ContactSenderThread(Cursor contactList, OutputInterface outInt) {
 		this.contactList = contactList;
-		this.out = out;
+		this.outInt = outInt;
 	}
 	
 	public void run() {
@@ -24,9 +22,6 @@ public class ContactSenderThread extends Thread {
         this.contactList.moveToFirst();
         do {    
         	name = this.contactList.getString(idn);
-        	if(name.length()+10>MAX_DATA_SIZE) {
-        		name = name.substring(0, MAX_DATA_SIZE-10); // pour ne pas que le nom dépasse du packet
-        	}
         	num = this.contactList.getString(idnu); // au format +33---------
         	num = "0"+num.substring(3); // au format 06..
         	
@@ -35,21 +30,17 @@ public class ContactSenderThread extends Thread {
         		break;
         	}
         	
-        	byte[] bytesToSend = new byte[256];
-        	bytesToSend[0] = 0; // Un seul packet suffit
-        	bytesToSend[1] = (byte) (10+name.length()); // Bytes "valides" dans le data
-        	bytesToSend[2] = (byte) 'C'; // Type du packet "contact"
+        	byte[] data = new byte[10+name.length()];
         	for(int i=0;i<10;i++) {
-        		bytesToSend[i+3] = (byte) num.charAt(i);
+        		data[i] = (byte) num.charAt(i);
         	}
         	for(int i=0;i<name.length();i++) {
-        		bytesToSend[i+13] = (byte) name.charAt(i);
+        		data[i+10] = (byte) name.charAt(i);
         	}
         	
         	
         	try {
-        		this.out.write(bytesToSend);
-				this.out.flush();
+        		this.outInt.sendPacket((byte) 'C', data);
 			} catch (IOException e) {
 				Log.report("IO issue sending contact", Log.ERROR);
 			}

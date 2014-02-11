@@ -18,9 +18,11 @@ public class ListeningThread extends Thread {
 	private BluetoothAdapter mBTAdapter;
 	private SmsManager smsm;
 	private Context context;
-	public ArrayList<OutputStream> clients_outputs = new ArrayList<OutputStream>();
+	public ArrayList<OutputInterface> clientsOutInt = new ArrayList<OutputInterface>();
+	public ArrayList<InputInterface> clientsInInt = new ArrayList<InputInterface>();
 	public int nClients = 0;
 	private Cursor contactList;
+	private final int PACKET_SIZE = 256;
 	
 	public ListeningThread(Context context, BluetoothAdapter mBTAdapter, SmsManager smsm, Cursor contactList) {
 		this.mBTAdapter = mBTAdapter;
@@ -47,19 +49,21 @@ public class ListeningThread extends Thread {
 				Log.report("Pb accepting the connection", Log.ERROR);
 			}
 			
-			InputStream inputStream = null;
+			InputInterface inputInt = null;
 			try {
-				inputStream = bts.getInputStream();
+				inputInt = new InputInterface(bts.getInputStream(),PACKET_SIZE);
 			} catch (IOException e) {
 				Log.report("Pb getting the input stream", Log.ERROR);
 			}
-			(new ReadingThread(this.context, inputStream,smsm,this.nClients)).start();
+			(new ReadingThread(this.context, inputInt,smsm,this.nClients)).start();
 			
-			OutputStream out = null;
+			OutputInterface outInt = null;
 			try {
-				out = bts.getOutputStream();
-				this.clients_outputs.add(out);
-				(new ContactSenderThread(this.contactList,out)).start();
+				
+				outInt = new OutputInterface(bts.getOutputStream(),PACKET_SIZE);
+				this.clientsOutInt.add(outInt);
+				
+				(new ContactSenderThread(this.contactList,outInt)).start();
 			} catch (IOException e) {
 				Log.report("Pb getting the output stream", Log.ERROR);
 			}
