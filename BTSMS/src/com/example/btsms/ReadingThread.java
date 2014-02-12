@@ -33,12 +33,13 @@ public class ReadingThread extends Thread {
 				switch(byteToChar(packet[0])) {
 				case 'S':
 					int id = packet[1]&0xff;
+					int lNum = packet[2]&0xff;
 					String num = "";
-					for(int i=2;i<=11;i++) {
-						num += byteToChar(packet[i]);
+					for(int i=0;i<lNum;i++) {
+						num += byteToChar(packet[i+3]);
 					}
 					String message = "";
-					for(int i=12;i<packet.length;i++) {
+					for(int i=3+lNum;i<packet.length;i++) {
 						message += byteToChar(packet[i]);
 					}
 					

@@ -23,19 +23,15 @@ public class ContactSenderThread extends Thread {
         do {    
         	name = this.contactList.getString(idn);
         	num = this.contactList.getString(idnu); // au format +33---------
-        	num = "0"+num.substring(3); // au format 06..
         	
-        	if(num.length()!= 10) {
-        		Log.report("Number's size should be 10", Log.ERROR);
-        		break;
-        	}
+        	byte[] data = new byte[1+num.length()+name.length()];
         	
-        	byte[] data = new byte[10+name.length()];
-        	for(int i=0;i<10;i++) {
-        		data[i] = (byte) num.charAt(i);
+        	data[0] = (byte) num.length();
+        	for(int i=0;i<num.length();i++) {
+        		data[1+i] = (byte) num.charAt(i);
         	}
         	for(int i=0;i<name.length();i++) {
-        		data[i+10] = (byte) name.charAt(i);
+        		data[i+1+num.length()] = (byte) name.charAt(i);
         	}
         	
         	
