@@ -11,6 +11,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     
@@ -22,8 +23,7 @@
         android:theme="@style/AppTheme" >
         <activity
             android:name="com.example.btsms.BTSMSActivity"
-            android:label="@string/title_activity_btsms" 
-            android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+            android:label="@string/title_activity_btsms">
             
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

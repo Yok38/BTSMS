@@ -14,7 +14,7 @@ public class Log {
 	public static void report(String msg, int priority) {
 		Log.log.add(new LogEntry(Log.markers[priority]+msg));
 		for(Notifyable n:Log.toNotify) {
-			n.not();
+			n.not(Log.log.get(Log.log.size()-1));
 		}
 	}
 	

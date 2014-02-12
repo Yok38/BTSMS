@@ -1,11 +1,13 @@
 package com.example.btsms;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.telephony.SmsManager;
-import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.app.Activity;
 import android.bluetooth.*;
 import android.content.BroadcastReceiver;
@@ -17,14 +19,22 @@ import android.database.Cursor;
 public class BTSMSActivity extends Activity implements Notifyable {
 
 	private BluetoothAdapter mBluetoothAdapter;
-	private View view;
 	private ListeningThread l;
 	private BroadcastReceiver smsSentReceiver;
 	private BroadcastReceiver smsDeliveredReceiver;
+	private ArrayAdapter<String> logAdapter;
 
 	protected void onCreate(Bundle savedInstanceState) {
-		
+
 		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_btsms);
+
+		ListView listView = (ListView) findViewById(R.id.list);
+		ArrayList<String> messages = new ArrayList<String>();
+		logAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, messages);
+		logAdapter.notifyDataSetChanged();
+		listView.setAdapter(logAdapter);
+
 
 		this.mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 		if (mBluetoothAdapter == null) {
@@ -48,10 +58,7 @@ public class BTSMSActivity extends Activity implements Notifyable {
 			Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
 			startActivity(discoverableIntent);
 
-			BTSMSView v = new BTSMSView(this, mBluetoothAdapter);
-			this.view = v;
 			Log.addObs(this);
-			setContentView(v);
 
 			SmsManager smsM = SmsManager.getDefault();
 
@@ -89,18 +96,18 @@ public class BTSMSActivity extends Activity implements Notifyable {
 				if(idm != -1 && idp != -1 && nClient != -1) {
 					Log.report("SMS "+ idm + " sent (part " + idp + ")", Log.INFO);
 					byte[] data = new byte[]{0,(byte) idm,(byte) idp};
-					
+
 					try {
 						l.clientsOutInt.get(nClient).sendPacket((byte) 'D', data);
 						Log.report("Delivery to client #"+nClient, Log.INFO);
 					} catch (IOException e) {
 						Log.report("IO issue sending delivery report to PC", Log.ERROR);
 					}
-					
+
 				}
 			}
 		};
-		
+
 		this.smsDeliveredReceiver = new BroadcastReceiver(){
 			@Override
 			public void onReceive(Context context, Intent intent) {
@@ -109,19 +116,19 @@ public class BTSMSActivity extends Activity implements Notifyable {
 				int nClient = intent.getIntExtra("nclient", -1);
 				if(idm != -1 && idp != -1 && nClient != -1) {
 					Log.report("SMS "+ idm + " delivered (part " + idp + ")", Log.INFO);
-					
+
 					byte[] data = new byte[]{1,(byte) idm,(byte) idp};
-					
+
 					try {
 						l.clientsOutInt.get(nClient).sendPacket((byte) 'D', data);
 					} catch (IOException e) {
 						Log.report("IO issue sending delivery report to PC", Log.ERROR);
 					}
-					
+
 				}
 			}
 		};
-		
+
 		registerReceiver(this.smsSentReceiver, new IntentFilter("SMS_SENT"));
 		registerReceiver(this.smsDeliveredReceiver, new IntentFilter("SMS_DELIVERED"));
 	}
@@ -132,12 +139,13 @@ public class BTSMSActivity extends Activity implements Notifyable {
 		finish();
 	}
 
-
-	public void not() {
+	@Override
+	public void not(final LogEntry l) {
 		runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				view.invalidate();
+				logAdapter.insert(l.toString(),0);
+				logAdapter.notifyDataSetChanged();
 			}
 		});
 	}
