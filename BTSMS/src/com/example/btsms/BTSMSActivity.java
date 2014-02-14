@@ -19,7 +19,7 @@ import android.database.Cursor;
 public class BTSMSActivity extends Activity implements Notifyable {
 
 	private BluetoothAdapter mBluetoothAdapter;
-	private ListeningThread l;
+	public ListeningThread l;
 	private BroadcastReceiver smsSentReceiver;
 	private BroadcastReceiver smsDeliveredReceiver;
 	private ArrayAdapter<String> logAdapter;

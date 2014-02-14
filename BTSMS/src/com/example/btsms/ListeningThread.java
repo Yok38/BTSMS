@@ -49,13 +49,12 @@ public class ListeningThread extends Thread {
 				Log.report("Pb accepting the connection", Log.ERROR);
 			}
 			
-			InputInterface inputInt = null;
+			InputInterface inInt = null;
 			try {
-				inputInt = new InputInterface(bts.getInputStream(),PACKET_SIZE);
+				inInt = new InputInterface(bts.getInputStream(),PACKET_SIZE);
 			} catch (IOException e) {
 				Log.report("Pb getting the input stream", Log.ERROR);
 			}
-			(new ReadingThread(this.context, inputInt,smsm,this.nClients)).start();
 			
 			OutputInterface outInt = null;
 			try {
@@ -67,6 +66,8 @@ public class ListeningThread extends Thread {
 			} catch (IOException e) {
 				Log.report("Pb getting the output stream", Log.ERROR);
 			}
+			
+			(new ReadingThread(this.context, inInt,outInt,smsm,this.nClients)).start();
 			
 			this.nClients++;
 	}
