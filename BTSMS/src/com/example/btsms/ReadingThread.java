@@ -49,10 +49,6 @@ public class ReadingThread extends Thread {
 						message += byteToChar(packet[i]);
 					}
 
-					Log.report("Packet.length = "+packet.length, Log.INFO);
-					Log.report("Number : "+num, Log.INFO);
-					Log.report("Message : "+message, Log.INFO);
-
 					ArrayList<String> parts = this.smsm.divideMessage(message);
 
 					ArrayList<PendingIntent> deliveredPIList = new ArrayList<PendingIntent>();
@@ -108,7 +104,7 @@ public class ReadingThread extends Thread {
 							if(cursorSmsThread.getCount()>0) {
 								cursorSmsThread.moveToFirst();
 								do {
-									history.add(new Message(cursorSmsThread.getLong(iddate), cursorSmsThread.getString(idbody), (cursorSmsThread.getInt(idtype) == 1)));			
+									history.add(0,new Message(cursorSmsThread.getLong(iddate), cursorSmsThread.getString(idbody), (cursorSmsThread.getInt(idtype) == 1)));			
 								} while(cursorSmsThread.moveToNext());
 							}
 							(new HistorySenderThread(number,history,this.outInt)).start();
