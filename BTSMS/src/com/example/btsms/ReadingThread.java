@@ -1,43 +1,47 @@
 package com.example.btsms;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
-
 import android.app.PendingIntent;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
-import android.provider.ContactsContract;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SmsManager;
+import android.util.Log;
 
 public class ReadingThread extends Thread {
 
-	private InputInterface inInt;
-	private OutputInterface outInt;
+	private static final String TAG = "ReadingThread";
+	public InputInterface inInt;
+	public OutputInterface outInt;
 	private SmsManager smsm;
+	private ContentResolver contentResolver;
 	private Context context;
-	private int nClient;
+	private ListeningThread l;
+	private boolean mustStop = false;
 
-	public ReadingThread(Context context, InputInterface inInt, OutputInterface outInt, SmsManager smsm, int nClient) {
+	public ReadingThread(ListeningThread l, Context context, ContentResolver contentResolver, InputInterface inInt, OutputInterface outInt, SmsManager smsm) {
 		this.inInt = inInt;
 		this.smsm = smsm;
+		this.contentResolver = contentResolver;
 		this.context = context;
-		this.nClient = nClient;
 		this.outInt = outInt;
+		this.l = l;
 	}
 
 	public void run() {
 		byte[] packet;
 
-		while(true) {
+		while(! this.mustStop) {
 			try {
 				packet = this.inInt.readPacket();
 				switch(byteToChar(packet[0])) {
 				case 'S':
+					int nClient = l.clientThreads.indexOf(this);
+					
 					int id = packet[1]&0xff;
 					int lNum = packet[2]&0xff;
 					String num = "";
@@ -56,7 +60,7 @@ public class ReadingThread extends Thread {
 						Intent deliveredIntent = new Intent("SMS_DELIVERED");
 						deliveredIntent.putExtra("idm", id);
 						deliveredIntent.putExtra("idp", j);
-						deliveredIntent.putExtra("nclient", this.nClient);
+						deliveredIntent.putExtra("nclient", nClient);
 						deliveredPIList.add(PendingIntent.getBroadcast(this.context, 0, deliveredIntent, PendingIntent.FLAG_CANCEL_CURRENT));
 					}
 
@@ -65,7 +69,7 @@ public class ReadingThread extends Thread {
 						Intent sentIntent = new Intent("SMS_SENT");
 						sentIntent.putExtra("idm", id);
 						sentIntent.putExtra("idp", j);
-						sentIntent.putExtra("nclient", this.nClient);
+						sentIntent.putExtra("nclient", nClient);
 						sentPIList.add(PendingIntent.getBroadcast(this.context, 0, sentIntent, PendingIntent.FLAG_CANCEL_CURRENT));
 					}				
 
@@ -81,7 +85,7 @@ public class ReadingThread extends Thread {
 
 					ArrayList<Message> history = new ArrayList<Message>();
 
-					Cursor cursorThreads = this.context.getContentResolver().query(Uri.parse("content://sms/"), new String[]{"address","thread_id"}, null, null, null);
+					Cursor cursorThreads = this.contentResolver.query(Uri.parse("content://sms/"), new String[]{"address","thread_id"}, null, null, null);
 
 					int thread_id = -1;
 					if(cursorThreads.getCount()>0) {
@@ -97,7 +101,7 @@ public class ReadingThread extends Thread {
 						} while(cursorThreads.moveToNext());
 
 						if(thread_id>=0) {
-							Cursor cursorSmsThread = this.context.getContentResolver().query(Uri.parse("content://sms/"), new String[]{"thread_id","type","body","date"}, "thread_id="+thread_id, null,"date desc limit 5");
+							Cursor cursorSmsThread = this.contentResolver.query(Uri.parse("content://sms/"), new String[]{"thread_id","type","body","date"}, "thread_id="+thread_id, null,"date desc limit 5");
 							int idtype = cursorSmsThread.getColumnIndex("type");
 							int idbody = cursorSmsThread.getColumnIndex("body");
 							int iddate = cursorSmsThread.getColumnIndex("date");
@@ -110,60 +114,24 @@ public class ReadingThread extends Thread {
 							(new HistorySenderThread(number,history,this.outInt)).start();
 						}
 						else {
-							Log.report("No thread associated with number "+number, Log.INFO);
+							Log.i(TAG,"No thread associated with number");
 						}
 					}
 					else {
-						Log.report("No thread", Log.INFO);
+						Log.i(TAG,"No threads at all");
 					}
 
-					//
-					//					int thread_id = -1;
-					//					Cursor conv = this.context.getContentResolver().query(Uri.parse("content://mms-sms/conversations/"), new String[]{"thread_id","address"}, null, null, null);
-					//					int idnumber = conv.getColumnIndex("address");
-					//					int idthread = conv.getColumnIndex("thread_id");
-					//					if(conv.getCount()>0) {
-					//						conv.moveToFirst();
-					//						do {
-					//							Log.report("PNU.compare("+number+","+conv.getString(idnumber)+"", Log.INFO);
-					//							if(PhoneNumberUtils.compare(number, conv.getString(idnumber))) {
-					//								thread_id = conv.getInt(idthread);
-					//							}
-					//						} while(conv.moveToNext());
-					//
-					//						if(thread_id >= 0) {
-					//							Cursor msg = this.context.getContentResolver().query(Uri.parse("content://sms/"), new String[]{"thread_id","date","type","body"}, "thread_id=+'"+thread_id+"'", null, "date DESC limit 5");
-					//							int iddate = msg.getColumnIndex("date");
-					//							int idtype = msg.getColumnIndex("type");
-					//							int idbody = msg.getColumnIndex("body");
-					//							if(msg.getCount()>0) {
-					//								ArrayList<Message> history = new ArrayList<Message>();
-					//								msg.moveToFirst();
-					//								do {
-					//									long date = msg.getLong(iddate);
-					//									int type = msg.getInt(idtype);
-					//									String body = msg.getString(idbody);
-					//									
-					//									history.add(new Message(date, body, (type == 1)));
-					//									
-					//								} while(msg.moveToNext());
-					//								
-					//								(new HistorySenderThread(number,history,this.outInt)).start();
-					//							}
-					//							
-					//						}
-					//						else {
-					//							Log.report(thread_id+" No thread associated with "+number, Log.INFO);
-					//						}
-					//					}
-					//					else {
-					//						Log.report("No threads at all", Log.INFO);
-					//					}
-
+					break;
+				case 'X':
+					Log.i(TAG,"Packet X received");
+					this.mustStop = true;
+					l.clientThreads.remove(this);
 					break;
 				}
 			} catch (IOException e) {
-				Log.report("Pb reading buffer", Log.ERROR);
+				Log.e(TAG,"IO issue reading the buffer");
+				l.clientThreads.remove(this);
+				break;
 			}
 
 
@@ -172,5 +140,9 @@ public class ReadingThread extends Thread {
 
 	private char byteToChar(byte b) {
 		return (char) (b&0xff);
+	}
+
+	public void stopService() {
+		this.mustStop  = true;
 	}
 }

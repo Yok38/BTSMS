@@ -1,28 +1,36 @@
 package com.example.btsms;
 
 import java.io.IOException;
+
+import android.content.ContentResolver;
 import android.database.Cursor;
 import android.provider.ContactsContract;
+import android.util.Log;
 
 public class ContactSenderThread extends Thread {
 	
+	private static final String TAG = "ContactSenderThread";
 	private OutputInterface outInt;
-	private Cursor contactList;
+	private ContentResolver contentResolver;
 	
-	ContactSenderThread(Cursor contactList, OutputInterface outInt) {
-		this.contactList = contactList;
+	ContactSenderThread(ContentResolver contentResolver, OutputInterface outInt) {
+		this.contentResolver = contentResolver;
 		this.outInt = outInt;
 	}
 	
 	public void run() {
-		int idn = this.contactList.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
-        int idnu = this.contactList.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER);
+		
+		String[] proj = new String[]{ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER};
+		Cursor contactList = this.contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, proj, null, null, null);
+		
+		int idn = contactList.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
+        int idnu = contactList.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER);
         String name;
         String num;
-        this.contactList.moveToFirst();
+        contactList.moveToFirst();
         do {    
-        	name = this.contactList.getString(idn);
-        	num = this.contactList.getString(idnu); // au format +33---------
+        	name = contactList.getString(idn);
+        	num = contactList.getString(idnu); // au format +33---------
         	
         	byte[] data = new byte[1+num.length()+name.length()];
         	
@@ -37,11 +45,12 @@ public class ContactSenderThread extends Thread {
         	
         	try {
         		this.outInt.sendPacket((byte) 'C', data);
+        		Log.i(TAG, "Sending contact");
 			} catch (IOException e) {
-				Log.report("IO issue sending contact", Log.ERROR);
+				Log.e(TAG,"IO issue sending contact");
 			}
         	
-        } while (this.contactList.moveToNext());
+        } while (contactList.moveToNext());
 	}
 
 }
