@@ -41,7 +41,7 @@ public class ReadingThread extends Thread {
 				switch(byteToChar(packet[0])) {
 				case 'S':
 					int nClient = l.clientThreads.indexOf(this);
-					
+
 					int id = packet[1]&0xff;
 					int lNum = packet[2]&0xff;
 					String num = "";
@@ -76,6 +76,7 @@ public class ReadingThread extends Thread {
 					this.smsm.sendMultipartTextMessage(num, null, parts, sentPIList, deliveredPIList);
 					break;
 
+				case 'B':
 				case 'H':
 					int lNumber = packet[1]&0xff;
 					String number = "";
@@ -101,20 +102,44 @@ public class ReadingThread extends Thread {
 						} while(cursorThreads.moveToNext());
 
 						if(thread_id>=0) {
-							Cursor cursorSmsThread = this.contentResolver.query(Uri.parse("content://sms/"), new String[]{"thread_id","type","body","date"}, "thread_id="+thread_id, null,"date desc limit 5");
-							int idtype = cursorSmsThread.getColumnIndex("type");
-							int idbody = cursorSmsThread.getColumnIndex("body");
-							int iddate = cursorSmsThread.getColumnIndex("date");
-							if(cursorSmsThread.getCount()>0) {
-								cursorSmsThread.moveToFirst();
-								do {
-									history.add(0,new Message(cursorSmsThread.getLong(iddate), cursorSmsThread.getString(idbody), (cursorSmsThread.getInt(idtype) == 1)));			
-								} while(cursorSmsThread.moveToNext());
+							if(byteToChar(packet[0]) == 'H') {
+								Cursor cursorSmsThread = this.contentResolver.query(Uri.parse("content://sms/"), new String[]{"thread_id","type","body","date"}, "thread_id="+thread_id, null,"date desc limit 5");
+								int idtype = cursorSmsThread.getColumnIndex("type");
+								int idbody = cursorSmsThread.getColumnIndex("body");
+								int iddate = cursorSmsThread.getColumnIndex("date");
+								if(cursorSmsThread.getCount()>0) {
+									cursorSmsThread.moveToFirst();
+									do {
+										history.add(0,new Message(cursorSmsThread.getLong(iddate), cursorSmsThread.getString(idbody), (cursorSmsThread.getInt(idtype) == 1)));			
+									} while(cursorSmsThread.moveToNext());
+								}
+								(new HistorySenderThread(number,history,this.outInt)).start();
 							}
-							(new HistorySenderThread(number,history,this.outInt)).start();
+							else {
+								Cursor cursorSmsThread = this.contentResolver.query(Uri.parse("content://sms/"), new String[]{"thread_id","type","body","date"}, "thread_id="+thread_id, null,"date desc");
+								int idtype = cursorSmsThread.getColumnIndex("type");
+								int idbody = cursorSmsThread.getColumnIndex("body");
+								int iddate = cursorSmsThread.getColumnIndex("date");
+								if(cursorSmsThread.getCount()>0) {
+									cursorSmsThread.moveToFirst();
+									do {
+										history.add(0,new Message(cursorSmsThread.getLong(iddate), cursorSmsThread.getString(idbody), (cursorSmsThread.getInt(idtype) == 1)));			
+									} while(cursorSmsThread.moveToNext());
+								}
+								(new BackupSenderThread(number,history,this.outInt)).start();
+							}
+
 						}
 						else {
 							Log.i(TAG,"No thread associated with number");
+
+							if(byteToChar(packet[0]) == 'B') {
+								try {
+									this.outInt.sendPacket((byte) 'B', new byte[1]); // Fin de transmission de backup
+								} catch (IOException e) {
+									Log.e(TAG,"IO issue sending backup");
+								}
+							}
 						}
 					}
 					else {
